@@ -11,7 +11,8 @@ const nextConfig: NextConfig = {
         source: "/:path*",
         headers: [
           { key: "X-Content-Type-Options", value: "nosniff" },
-          { key: "X-Frame-Options", value: "DENY" },
+          // SAMEORIGIN (not DENY): the dev simulator frames player panes from the same origin.
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           // Camera is needed for QR scanning at the table; nothing else.
           { key: "Permissions-Policy", value: "camera=(self), microphone=(), geolocation=()" },
