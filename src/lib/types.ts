@@ -148,6 +148,7 @@ export interface CreateGameConfig {
   allowLateEntry: boolean;
   autoAdvanceLevels: boolean;
   advanceAfterHand: boolean;
+  allowStructureEdits?: boolean;
   soundsEnabled: boolean;
   hapticsEnabled: boolean;
   timerAlertsEnabled: boolean;

@@ -68,6 +68,74 @@ export function Field({ label, hint, className, ...rest }: InputHTMLAttributes<H
   );
 }
 
+/**
+ * Whole-number input that never fights the typist: the field holds a text
+ * draft while focused (so you can clear it, or type "1" then "50"), and the
+ * numeric value is committed on every keystroke that parses and on blur.
+ */
+export function NumberInput({
+  label,
+  value,
+  onChange,
+  min = 0,
+  max = 1_000_000_000,
+  hint,
+  className,
+  inputClassName,
+  size = "md",
+}: {
+  label?: string;
+  value: number;
+  onChange: (v: number) => void;
+  min?: number;
+  max?: number;
+  hint?: string;
+  className?: string;
+  inputClassName?: string;
+  size?: "sm" | "md" | "lg";
+}) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const shown = draft ?? String(value);
+  const commit = (raw: string) => {
+    const digits = raw.replace(/[^\d]/g, "");
+    if (digits === "") return;
+    const n = Math.min(max, Math.max(min, Number(digits)));
+    if (n !== value) onChange(n);
+  };
+  const heights = { sm: "h-10 text-base", md: "h-12 text-lg", lg: "h-14 text-2xl" };
+  return (
+    <label className={cn("flex flex-col gap-1", className)}>
+      {label ? <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-ivory-400">{label}</span> : null}
+      <input
+        type="text"
+        inputMode="numeric"
+        pattern="[0-9]*"
+        autoComplete="off"
+        className={cn(
+          "w-full rounded-xl border border-white/10 bg-charcoal-900 px-3 font-mono tabular-nums text-ivory-50 outline-none focus:border-gold-400/60 focus:ring-2 focus:ring-gold-400/20",
+          heights[size],
+          inputClassName,
+        )}
+        value={shown}
+        onFocus={(e) => {
+          setDraft(String(value));
+          e.currentTarget.select();
+        }}
+        onChange={(e) => {
+          const raw = e.target.value.replace(/[^\d]/g, "");
+          setDraft(raw);
+          commit(raw);
+        }}
+        onBlur={() => {
+          if (draft !== null) commit(draft);
+          setDraft(null);
+        }}
+      />
+      {hint ? <span className="text-[10px] text-ivory-600">{hint}</span> : null}
+    </label>
+  );
+}
+
 export function Toggle({ label, description, checked, onChange, disabled }: { label: string; description?: string; checked: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
   return (
     <button

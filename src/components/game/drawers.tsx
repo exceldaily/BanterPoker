@@ -3,14 +3,14 @@
 import { useEffect, useState } from "react";
 import { QrCode, siteUrl } from "@/components/QrCode";
 import { StructureEditor } from "@/components/StructureEditor";
-import { Button, Confirm, Eyebrow, Field, Modal, Segmented, Toggle, cn } from "@/components/ui";
+import { Button, Confirm, Eyebrow, Field, Modal, NumberInput, Segmented, Toggle, cn } from "@/components/ui";
 import { api } from "@/lib/api";
-import { anteLabel, formatChips, formatDuration, levelLabel } from "@/lib/blinds";
+import { anteLabel, appendDoubledLevel, doubleBlindsFrom, formatChips, formatDuration, levelLabel } from "@/lib/blinds";
 import { friendlyMessage } from "@/lib/errors";
 import { useCountdown } from "@/lib/hooks/useCountdown";
 import type { GameState } from "@/lib/hooks/useGame";
 import { formatClock } from "@/lib/timer";
-import type { GameEvent, LevelInput, SnapshotDevice, SnapshotPlayer } from "@/lib/types";
+import type { GameEvent, LevelInput, SnapshotDevice, SnapshotLevel, SnapshotPlayer } from "@/lib/types";
 
 // Secondary dealer/host surfaces. Each is a modal so the primary dealer
 // screen stays uncluttered. Confirmations only for destructive actions.
@@ -38,6 +38,11 @@ function useAction(state: GameState) {
     }
   };
   return { busy, error, run, setError };
+}
+
+/** Snapshot levels -> editable level inputs (drops ids and sort order). */
+function toInputs(levels: SnapshotLevel[]): LevelInput[] {
+  return levels.map((l) => ({ type: l.type, smallBlind: l.smallBlind, bigBlind: l.bigBlind, ante: l.ante, anteType: l.anteType, durationSeconds: l.durationSeconds }));
 }
 
 // -----------------------------------------------------------------------------
@@ -356,7 +361,7 @@ export function TournamentDrawer({ open, onClose, state }: DrawerProps) {
   const [casual, setCasual] = useState({ sb: game.casual.smallBlind ?? 0, bb: game.casual.bigBlind ?? 0, ante: game.casual.ante ?? 0, anteType: game.casual.anteType });
 
   const startEdit = () => {
-    setDraft(tournament.levels.map((l) => ({ type: l.type, smallBlind: l.smallBlind, bigBlind: l.bigBlind, ante: l.ante, anteType: l.anteType, durationSeconds: l.durationSeconds })));
+    setDraft(toInputs(tournament.levels));
     setEditing(true);
   };
   const timer = (action: Parameters<typeof api.timerAction>[1], arg?: number) => void run(() => api.timerAction(game.id, action, arg));
@@ -365,23 +370,39 @@ export function TournamentDrawer({ open, onClose, state }: DrawerProps) {
     return (
       <Modal open={open} onClose={onClose} title="Stakes">
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Small blind" type="number" inputMode="numeric" value={casual.sb} onChange={(e) => setCasual({ ...casual, sb: Number(e.target.value) || 0 })} />
-          <Field label="Big blind" type="number" inputMode="numeric" value={casual.bb} onChange={(e) => setCasual({ ...casual, bb: Number(e.target.value) || 0 })} />
+          <Button
+            variant="gold"
+            className="col-span-2"
+            loading={busy}
+            onClick={() => {
+              const sb = Math.max(1, (game.casual.smallBlind ?? casual.sb) * 2);
+              const bb = Math.max(sb, (game.casual.bigBlind ?? casual.bb) * 2);
+              const anteType = game.casual.anteType;
+              const ante = anteType === "big_blind" ? bb : (game.casual.ante ?? 0) * 2;
+              setCasual({ sb, bb, ante, anteType });
+              void run(() => api.updateSettings(game.id, { casualSmallBlind: sb, casualBigBlind: bb, casualAnte: ante, casualAnteType: anteType }));
+            }}
+          >
+            Double the blinds now
+          </Button>
+          <NumberInput label="Small blind" value={casual.sb} onChange={(v) => setCasual({ ...casual, sb: v })} />
+          <NumberInput label="Big blind" value={casual.bb} onChange={(v) => setCasual({ ...casual, bb: v, ante: casual.anteType === "big_blind" ? v : casual.ante })} />
           <div className="col-span-2">
             <Segmented
               size="sm"
               value={casual.anteType}
               options={[
                 { value: "none", label: "No ante" },
-                { value: "standard", label: "Standard" },
                 { value: "big_blind", label: "BB ante" },
+                { value: "standard", label: "Everyone" },
               ]}
-              onChange={(v) => setCasual({ ...casual, anteType: v, ante: v === "none" ? 0 : v === "big_blind" ? casual.bb : casual.ante })}
+              onChange={(v) => setCasual({ ...casual, anteType: v, ante: v === "none" ? 0 : v === "big_blind" ? casual.bb : casual.ante || 1 })}
             />
           </div>
-          {casual.anteType !== "none" ? <Field label="Ante" type="number" inputMode="numeric" value={casual.ante} onChange={(e) => setCasual({ ...casual, ante: Number(e.target.value) || 0 })} /> : null}
+          {casual.anteType === "standard" ? <NumberInput label="Ante" value={casual.ante} onChange={(v) => setCasual({ ...casual, ante: v })} /> : null}
           <Button
             block
+            variant="secondary"
             className="col-span-2"
             loading={busy}
             onClick={() =>
@@ -476,6 +497,42 @@ export function TournamentDrawer({ open, onClose, state }: DrawerProps) {
             <Button variant="ghost" onClick={() => setConfirm({ title: "Go back to the previous level?", action: () => api.timerAction(game.id, "prev") })} disabled={(view?.levelIndex ?? 0) <= 0}>
               Previous level
             </Button>
+          </div>
+
+          <div className="rounded-2xl border border-gold-400/30 bg-gold-500/5 p-3">
+            <Eyebrow className="mb-2">Quick blinds</Eyebrow>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                size="sm"
+                variant="gold"
+                loading={busy}
+                onClick={() =>
+                  setConfirm({
+                    title: "Double the blinds from the next level on?",
+                    action: () => api.replaceLevels(game.id, doubleBlindsFrom(toInputs(tournament.levels), Math.max(0, (view?.levelIndex ?? -1) + 1))),
+                  })
+                }
+              >
+                Double next levels
+              </Button>
+              <Button size="sm" variant="secondary" loading={busy} onClick={() => void run(() => api.replaceLevels(game.id, appendDoubledLevel(toInputs(tournament.levels))))}>
+                Add level (double last)
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="col-span-2"
+                onClick={() =>
+                  setConfirm({
+                    title: "Double every level, including the current one?",
+                    action: () => api.replaceLevels(game.id, doubleBlindsFrom(toInputs(tournament.levels), 0)),
+                  })
+                }
+              >
+                Double all blinds
+              </Button>
+            </div>
+            <p className="mt-2 text-[11px] text-ivory-600">The current level keeps its clock either way.</p>
           </div>
 
           <Toggle label="Advance after current hand" description="When time runs out mid-hand, the new level waits for END HAND." checked={game.advanceAfterHand} onChange={(v) => void run(() => api.updateSettings(game.id, { advanceAfterHand: v }))} />

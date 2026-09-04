@@ -88,6 +88,100 @@ export function generateStructure(opts: GenerateOptions): LevelInput[] {
   return out;
 }
 
+/** Doubles blinds (and antes) on every play level. Breaks are untouched. */
+export function doubleAllBlinds(levels: readonly LevelInput[]): LevelInput[] {
+  return levels.map((l) =>
+    l.type === "break" ? { ...l } : { ...l, smallBlind: l.smallBlind * 2, bigBlind: l.bigBlind * 2, ante: l.anteType === "big_blind" ? l.bigBlind * 2 : l.ante * 2 },
+  );
+}
+
+/** Doubles blinds from the given index onward (used mid-game for "double the remaining levels"). */
+export function doubleBlindsFrom(levels: readonly LevelInput[], fromIndex: number): LevelInput[] {
+  return levels.map((l, i) =>
+    i < fromIndex || l.type === "break"
+      ? { ...l }
+      : { ...l, smallBlind: l.smallBlind * 2, bigBlind: l.bigBlind * 2, ante: l.anteType === "big_blind" ? l.bigBlind * 2 : l.ante * 2 },
+  );
+}
+
+/** Appends a play level whose blinds are double the last play level (same duration and ante style). */
+export function appendDoubledLevel(levels: readonly LevelInput[]): LevelInput[] {
+  const last = [...levels].reverse().find((l) => l.type === "play");
+  if (!last) return [...levels, { type: "play", smallBlind: 25, bigBlind: 50, ante: 0, anteType: "none", durationSeconds: 1200 }];
+  const bigBlind = last.bigBlind * 2;
+  return [
+    ...levels,
+    {
+      type: "play",
+      smallBlind: last.smallBlind * 2,
+      bigBlind,
+      ante: last.anteType === "big_blind" ? bigBlind : last.ante * 2,
+      anteType: last.anteType,
+      durationSeconds: last.durationSeconds,
+    },
+  ];
+}
+
+export interface QuickSetup {
+  smallBlind: number;
+  bigBlind: number;
+  minutes: number;
+  levels: number;
+  /** "double" multiplies by 2 each level; "gentle" by about 1.5 with rounding. */
+  growth: "double" | "gentle";
+  anteType: AnteType;
+  antesFromLevel: number;
+  breakEvery: number;
+  breakMinutes: number;
+}
+
+export const DEFAULT_QUICK_SETUP: QuickSetup = {
+  smallBlind: 25,
+  bigBlind: 50,
+  minutes: 20,
+  levels: 10,
+  growth: "double",
+  anteType: "none",
+  antesFromLevel: 4,
+  breakEvery: 0,
+  breakMinutes: 10,
+};
+
+/** The "we play timed intervals and double the blinds" structure, exactly doubled with no rounding. */
+export function quickStructure(q: QuickSetup): LevelInput[] {
+  if (q.growth === "gentle") {
+    return generateStructure({
+      startingSmallBlind: q.smallBlind,
+      startingBigBlind: q.bigBlind,
+      levelMinutes: q.minutes,
+      levels: q.levels,
+      growth: 1.5,
+      breakEvery: q.breakEvery,
+      breakMinutes: q.breakMinutes,
+      anteType: q.anteType,
+      antesFromLevel: q.antesFromLevel,
+    });
+  }
+  const out: LevelInput[] = [];
+  let sb = Math.max(1, q.smallBlind);
+  let bb = Math.max(sb, q.bigBlind);
+  for (let i = 1; i <= q.levels; i++) {
+    const useAnte = q.anteType !== "none" && i >= q.antesFromLevel;
+    out.push({
+      type: "play",
+      smallBlind: sb,
+      bigBlind: bb,
+      ante: useAnte ? (q.anteType === "big_blind" ? bb : Math.max(1, Math.round(bb / 8))) : 0,
+      anteType: useAnte ? q.anteType : "none",
+      durationSeconds: Math.max(1, q.minutes) * 60,
+    });
+    if (q.breakEvery > 0 && i % q.breakEvery === 0 && i < q.levels) out.push(breakLevel(q.breakMinutes));
+    sb *= 2;
+    bb *= 2;
+  }
+  return out;
+}
+
 export function presetLevels(key: PresetKey): LevelInput[] {
   switch (key) {
     case "casual":
