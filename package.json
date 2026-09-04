@@ -1,0 +1,52 @@
+{
+  "name": "banter-poker",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Banter Poker - a digital deck and home poker table companion. Keep the chips. Keep the banter. Lose the deck.",
+  "type": "module",
+  "packageManager": "pnpm@10.34.5",
+  "engines": {
+    "node": ">=20.11.0"
+  },
+  "scripts": {
+    "dev": "next dev --port 3010",
+    "build": "next build",
+    "start": "next start --port 3010",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --project unit",
+    "test:unit": "vitest run --project unit",
+    "test:integration": "vitest run --project integration",
+    "test:all": "vitest run",
+    "test:watch": "vitest --project unit"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.110.8",
+    "clsx": "2.1.1",
+    "framer-motion": "12.34.0",
+    "jsqr": "1.4.0",
+    "lucide-react": "1.26.0",
+    "next": "16.2.11",
+    "qrcode": "1.5.4",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "server-only": "0.0.1",
+    "tailwind-merge": "3.6.0",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "4.3.3",
+    "@types/node": "24.13.3",
+    "@types/qrcode": "1.5.5",
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.4",
+    "dotenv": "17.2.3",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.2.11",
+    "sharp": "0.34.5",
+    "tailwindcss": "4.3.3",
+    "typescript": "5.9.3",
+    "vitest": "4.1.10"
+  }
+}
