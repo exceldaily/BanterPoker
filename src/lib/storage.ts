@@ -43,10 +43,15 @@ const KEYS = {
   installDismissed: "bp.installDismissed",
   displayName: "bp.displayName",
   tabletopMode: "bp.tabletopMode",
+  cardSize: "bp.cardSize",
 } as const;
 
 export type CardMode = "peel" | "flip";
 export type Orientation = "portrait" | "landscape";
+/** Card face scale chosen by the player. "xl" is the large-print option. */
+export type CardSize = "standard" | "large" | "xl";
+
+const CARD_SIZES: CardSize[] = ["standard", "large", "xl"];
 
 function read(key: string): string | null {
   try {
@@ -81,6 +86,11 @@ export const prefs = {
   setDisplayName: (n: string) => write(KEYS.displayName, n),
   getTabletopMode: (): boolean => read(KEYS.tabletopMode) === "1",
   setTabletopMode: (v: boolean) => write(KEYS.tabletopMode, v ? "1" : "0"),
+  getCardSize: (): CardSize => {
+    const v = read(KEYS.cardSize);
+    return CARD_SIZES.includes(v as CardSize) ? (v as CardSize) : "large";
+  },
+  setCardSize: (s: CardSize) => write(KEYS.cardSize, s),
 };
 
 export function isStandalone(): boolean {

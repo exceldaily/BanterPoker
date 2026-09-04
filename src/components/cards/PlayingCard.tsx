@@ -30,16 +30,18 @@ export function CardFace({ id, className, style, faded }: { id: string; classNam
       role="img"
       aria-label={c.name}
     >
-      <div className="absolute left-[7%] top-[5%] flex flex-col items-center font-serif" style={{ fontSize: "min(9cqw, 2.2rem)" }}>
-        <span className="font-semibold leading-none">{c.rankLabel}</span>
-        <SuitGlyph symbol={c.suitSymbol} className="mt-[0.1em] text-[0.9em]" />
+      {/* Large-index corners: rank first, suit below, bold and high contrast so a
+          quick peek at a corner is readable even with poor eyesight. */}
+      <div className="absolute left-[6%] top-[4%] flex flex-col items-center font-sans" style={{ fontSize: "min(17cqw, 4.2rem)", lineHeight: 0.95 }}>
+        <span className="font-bold tabular-nums tracking-tight">{c.rankLabel}</span>
+        <SuitGlyph symbol={c.suitSymbol} className="text-[0.95em]" />
       </div>
-      <div className="absolute bottom-[5%] right-[7%] flex rotate-180 flex-col items-center font-serif" style={{ fontSize: "min(9cqw, 2.2rem)" }}>
-        <span className="font-semibold leading-none">{c.rankLabel}</span>
-        <SuitGlyph symbol={c.suitSymbol} className="mt-[0.1em] text-[0.9em]" />
+      <div className="absolute bottom-[4%] right-[6%] flex rotate-180 flex-col items-center font-sans" style={{ fontSize: "min(17cqw, 4.2rem)", lineHeight: 0.95 }}>
+        <span className="font-bold tabular-nums tracking-tight">{c.rankLabel}</span>
+        <SuitGlyph symbol={c.suitSymbol} className="text-[0.95em]" />
       </div>
       <div className="flex flex-1 items-center justify-center">
-        <span className="font-serif opacity-90" style={{ fontSize: "min(38cqw, 9rem)" }} aria-hidden>
+        <span className="font-serif" style={{ fontSize: "min(40cqw, 9.5rem)" }} aria-hidden>
           {c.suitSymbol}
         </span>
       </div>

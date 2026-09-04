@@ -15,7 +15,7 @@ import { haptic, playSound, prefersReducedMotion, unlockAudio } from "@/lib/feed
 import { useCountdown } from "@/lib/hooks/useCountdown";
 import type { GameState } from "@/lib/hooks/useGame";
 import { seatLabel } from "@/lib/positions";
-import { prefs, useStored, type CardMode, type Orientation } from "@/lib/storage";
+import { prefs, useStored, type CardMode, type CardSize, type Orientation } from "@/lib/storage";
 
 // The player's phone becomes their two hole cards. Everything else stays small.
 
@@ -28,12 +28,17 @@ export function PlayerView({ state, onSwitchToDealer }: { state: GameState; onSw
   const storedMode = useStored(prefs.getCardMode, "peel");
   const storedOrientation = useStored(prefs.getOrientation, "portrait");
   const storedLock = useStored(prefs.getLockFaceUp, false);
+  const storedSize = useStored(prefs.getCardSize, "large");
   const [modeChoice, setMode] = useState<CardMode | null>(null);
   const [orientationChoice, setOrientation] = useState<Orientation | null>(null);
   const [lockChoice, setLockFaceUp] = useState<boolean | null>(null);
+  const [sizeChoice, setCardSize] = useState<CardSize | null>(null);
   const mode: CardMode = modeChoice ?? storedMode;
   const orientation: Orientation = orientationChoice ?? storedOrientation;
   const lockFaceUp = lockChoice ?? storedLock;
+  const cardSize: CardSize = sizeChoice ?? storedSize;
+  // Five medium cards plus gaps still fit a 375px phone; anything bigger would overflow.
+  const boardSize = cardSize === "standard" ? "sm" : "md";
   const [obscured, setObscured] = useState(false);
   const [confirmFold, setConfirmFold] = useState(false);
   const [confirmShow, setConfirmShow] = useState(false);
@@ -179,7 +184,7 @@ export function PlayerView({ state, onSwitchToDealer }: { state: GameState; onSw
 
       <TournamentBar game={game} tournament={tournament} view={view} />
 
-      <Board hand={hand} size="sm" className="py-1" />
+      <Board hand={hand} size={boardSize} className="py-1" />
 
       <AnimatePresence>
         {levelFlash ? (
@@ -218,6 +223,7 @@ export function PlayerView({ state, onSwitchToDealer }: { state: GameState; onSw
                 obscured={obscured}
                 onReveal={() => setObscured(false)}
                 orientation={orientation}
+                size={cardSize}
                 handKey={handKey}
                 disabled={!inHand && hand.state === "complete" && !shown ? false : undefined}
               />
@@ -321,6 +327,22 @@ export function PlayerView({ state, onSwitchToDealer }: { state: GameState; onSw
             }}
           />
           <p className="text-sm text-ivory-400">Peel: drag a card up to squeeze a look. Flip: press and hold to turn both cards over.</p>
+          <div>
+            <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-ivory-400">Card size</p>
+            <Segmented
+              value={cardSize}
+              options={[
+                { value: "standard", label: "Standard" },
+                { value: "large", label: "Large" },
+                { value: "xl", label: "Extra large" },
+              ]}
+              onChange={(s) => {
+                setCardSize(s);
+                prefs.setCardSize(s);
+              }}
+            />
+            <p className="mt-2 text-sm text-ivory-400">Extra large is the big-print option: bigger faces, bigger corner numbers, bigger board.</p>
+          </div>
           {mode === "flip" ? (
             <Toggle
               label="Lock face up"

@@ -5,8 +5,9 @@ import { cn } from "@/components/ui";
 import { seatLabel } from "@/lib/positions";
 import type { SnapshotHand, SnapshotPlayer } from "@/lib/types";
 
-// Poker-table shaped seating. Seats are laid out around an oval, clockwise
-// from the top-left, so seat 1 and the last seat sit next to each other.
+// Oval (stadium) poker table: a padded rail around a felt playing surface
+// with a betting line, and seats spread evenly around the rim, clockwise from
+// the top-left, exactly like people sit around a real home-game table.
 
 export interface SeatMapProps {
   maxSeats: number;
@@ -23,14 +24,45 @@ export interface SeatMapProps {
   center?: React.ReactNode;
 }
 
-/** Positions (percent) for n seats around an oval, seat 1 top-left going clockwise. */
+// Geometry in a 200 x 100 box (the container is 2:1). The seat path is a
+// stadium: two straights joined by semicircles, sitting just outside the rail.
+const BOX_W = 200;
+const BOX_H = 100;
+const SEAT_R = 41; // radius of the seat path's end caps
+const SEAT_CY = 50;
+const CAP_LEFT_CX = BOX_W / 2 - 42; // 58
+const CAP_RIGHT_CX = BOX_W / 2 + 42; // 142
+const STRAIGHT = CAP_RIGHT_CX - CAP_LEFT_CX; // 84
+const ARC = Math.PI * SEAT_R;
+const PERIMETER = 2 * STRAIGHT + 2 * ARC;
+
+/** Point on the seat path at arc-length `t` measured clockwise from the top-left junction. */
+function pointAt(t: number): { x: number; y: number } {
+  let d = ((t % PERIMETER) + PERIMETER) % PERIMETER;
+  if (d < STRAIGHT) return { x: CAP_LEFT_CX + d, y: SEAT_CY - SEAT_R }; // top straight, left -> right
+  d -= STRAIGHT;
+  if (d < ARC) {
+    const a = -Math.PI / 2 + (d / ARC) * Math.PI; // right cap, top -> bottom
+    return { x: CAP_RIGHT_CX + SEAT_R * Math.cos(a), y: SEAT_CY + SEAT_R * Math.sin(a) };
+  }
+  d -= ARC;
+  if (d < STRAIGHT) return { x: CAP_RIGHT_CX - d, y: SEAT_CY + SEAT_R }; // bottom straight, right -> left
+  d -= STRAIGHT;
+  const a = Math.PI / 2 + (d / ARC) * Math.PI; // left cap, bottom -> top
+  return { x: CAP_LEFT_CX + SEAT_R * Math.cos(a), y: SEAT_CY + SEAT_R * Math.sin(a) };
+}
+
+/**
+ * Percent positions for n seats. Anchored at the top centre so the layout is
+ * left-right symmetric: seat 1 is the first chair left of top centre, seat 2
+ * the first right of it, then clockwise around the table.
+ */
 export function seatPositions(n: number): { x: number; y: number }[] {
   const out: { x: number; y: number }[] = [];
-  // Start at roughly 10 o'clock and go clockwise so the "top" of the table reads left to right.
-  const start = -Math.PI * 0.78;
+  const spacing = PERIMETER / n;
   for (let i = 0; i < n; i++) {
-    const angle = start + (i / n) * Math.PI * 2;
-    out.push({ x: 50 + 44 * Math.cos(angle), y: 50 + 40 * Math.sin(angle) });
+    const p = pointAt(STRAIGHT / 2 + (i - 0.5) * spacing);
+    out.push({ x: (p.x / BOX_W) * 100, y: (p.y / BOX_H) * 100 });
   }
   return out;
 }
@@ -52,10 +84,22 @@ export function SeatMap({ maxSeats, players, hand, dealerSeat, mySeat, myPlayerI
   const activeHand = !!hand && hand.state !== "complete";
 
   return (
-    <div className={cn("relative mx-auto w-full", compact ? "max-w-sm" : "max-w-xl", className)} style={{ aspectRatio: "4 / 3" }}>
-      <div className="felt absolute inset-[12%] rounded-[45%] border-[6px] border-charcoal-800 shadow-card" aria-hidden />
-      <div className="absolute inset-[16%] rounded-[45%] border border-gold-400/20" aria-hidden />
-      {center ? <div className="absolute inset-[22%] flex items-center justify-center">{center}</div> : null}
+    <div className={cn("relative mx-auto w-full", compact ? "max-w-md" : "max-w-2xl", className)} style={{ aspectRatio: "2 / 1", padding: compact ? "6% 8%" : "7% 9%" }}>
+      {/* Rail */}
+      <div
+        className="absolute inset-[9%_7%] rounded-full shadow-card"
+        style={{ background: "linear-gradient(180deg, #2a2320 0%, #171311 55%, #0f0c0b 100%)", boxShadow: "0 18px 40px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.08)" }}
+        aria-hidden
+      />
+      {/* Felt */}
+      <div
+        className="absolute inset-[16%_11%] rounded-full"
+        style={{ background: "radial-gradient(ellipse at 50% 40%, #1f4a35 0%, #143122 55%, #0e2418 100%)", boxShadow: "inset 0 8px 24px rgba(0,0,0,0.45)" }}
+        aria-hidden
+      />
+      {/* Betting line */}
+      <div className="absolute inset-[27%_19%] rounded-full border border-ivory-100/20" aria-hidden />
+      {center ? <div className="absolute inset-[30%_22%] flex items-center justify-center">{center}</div> : null}
 
       {positions.map((pt, i) => {
         const seat = i + 1;
@@ -66,6 +110,7 @@ export function SeatMap({ maxSeats, players, hand, dealerSeat, mySeat, myPlayerI
         const muted = p && (p.status === "eliminated" || p.status === "sitting_out" || (activeHand && p.handStatus === "folded"));
         const connected = p ? (connectedPlayerIds ? connectedPlayerIds.has(p.id) : true) : false;
         const clickable = !!onSeatTap && (selectable ? !p || isMe : true);
+        const bottomHalf = pt.y > 50;
         return (
           <button
             key={seat}
@@ -73,33 +118,34 @@ export function SeatMap({ maxSeats, players, hand, dealerSeat, mySeat, myPlayerI
             disabled={!clickable}
             onClick={() => onSeatTap?.(seat, p)}
             className={cn(
-              "absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1 rounded-2xl px-1 py-1 text-center transition",
+              "absolute flex -translate-x-1/2 -translate-y-1/2 items-center gap-1 rounded-2xl px-1 py-1 text-center transition",
+              bottomHalf ? "flex-col-reverse" : "flex-col",
               clickable && "hover:scale-[1.04] active:scale-95",
               !clickable && "cursor-default",
             )}
-            style={{ left: `${pt.x}%`, top: `${pt.y}%`, minWidth: compact ? 56 : 72 }}
+            style={{ left: `${pt.x}%`, top: `${pt.y}%`, minWidth: compact ? 52 : 72 }}
             aria-label={p ? `Seat ${seat}, ${p.name}${badge ? `, ${badge.label.toLowerCase()}` : ""}` : `Seat ${seat}, available`}
           >
             <span
               className={cn(
-                "relative flex items-center justify-center rounded-full border font-semibold shadow-soft",
-                compact ? "h-11 w-11 text-xs" : "h-14 w-14 text-sm",
+                "relative flex items-center justify-center rounded-full border-2 font-semibold shadow-soft",
+                compact ? "h-10 w-10 text-xs" : "h-14 w-14 text-sm",
                 p
                   ? muted
                     ? "border-white/10 bg-charcoal-800 text-ivory-600"
                     : isMe
-                      ? "border-gold-400 bg-gold-500/20 text-ivory-50"
-                      : "border-white/15 bg-charcoal-800 text-ivory-100"
+                      ? "border-gold-400 bg-gold-500/25 text-ivory-50"
+                      : "border-ivory-100/20 bg-charcoal-800 text-ivory-100"
                   : selectable
-                    ? "border-dashed border-gold-400/60 bg-felt-800/60 text-gold-300"
-                    : "border-dashed border-white/15 bg-charcoal-900/60 text-ivory-600",
+                    ? "border-dashed border-gold-400/70 bg-felt-800/70 text-gold-300"
+                    : "border-dashed border-white/15 bg-charcoal-900/70 text-ivory-600",
               )}
             >
               {p ? initials(p.name) : seat}
               {label ? (
                 <span
                   className={cn(
-                    "absolute -right-1 -top-1 rounded-full px-1.5 py-0.5 text-[9px] font-bold tracking-wide",
+                    "absolute -right-1.5 -top-1.5 rounded-full px-1.5 py-0.5 text-[9px] font-bold tracking-wide shadow-soft",
                     label.startsWith("D") ? "bg-ivory-50 text-charcoal-950" : "bg-gold-500 text-charcoal-950",
                   )}
                 >
@@ -113,7 +159,7 @@ export function SeatMap({ maxSeats, players, hand, dealerSeat, mySeat, myPlayerI
                 />
               ) : null}
             </span>
-            <span className={cn("max-w-[5.5rem] truncate text-[11px] font-medium", p ? (muted ? "text-ivory-600" : "text-ivory-100") : "text-ivory-600")}>
+            <span className={cn("max-w-[5.5rem] truncate font-medium", compact ? "text-[10px]" : "text-[11px]", p ? (muted ? "text-ivory-600" : "text-ivory-100") : "text-ivory-600")}>
               {p ? p.name : selectable ? "Open" : `Seat ${seat}`}
             </span>
             {badge ? <span className={cn("rounded-full px-1.5 py-0.5 text-[8px] font-bold tracking-widest", badge.className)}>{badge.label}</span> : null}

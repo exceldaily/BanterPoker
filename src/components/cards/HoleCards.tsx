@@ -5,7 +5,7 @@ import { useCallback, useRef, useState } from "react";
 import { CardBack, CardFace } from "@/components/cards/PlayingCard";
 import { cn } from "@/components/ui";
 import { haptic, prefersReducedMotion } from "@/lib/feedback";
-import type { CardMode } from "@/lib/storage";
+import type { CardMode, CardSize } from "@/lib/storage";
 
 // The player's two hole cards. Two interactions:
 //   PEEL: drag from the corner; the back curls away proportionally and snaps
@@ -23,9 +23,16 @@ export interface HoleCardsProps {
   obscured: boolean;
   onReveal: () => void;
   orientation?: "portrait" | "landscape";
+  /** Player-chosen face scale. "xl" is the large-print option. */
+  size?: CardSize;
   handKey: string;
   disabled?: boolean;
 }
+
+const WIDTHS: Record<"portrait" | "landscape", Record<CardSize, string>> = {
+  portrait: { standard: "max-w-xs gap-3", large: "max-w-sm gap-3", xl: "max-w-md gap-2" },
+  landscape: { standard: "max-w-2xl gap-6", large: "max-w-3xl gap-6", xl: "max-w-4xl gap-4" },
+};
 
 const PEEL_MAX = 150;
 
@@ -104,7 +111,7 @@ function FlipCard({ id, up, delay }: { id: string; up: boolean; delay: number })
   );
 }
 
-export function HoleCards({ cards, mode, lockFaceUp, hapticsEnabled, obscured, onReveal, orientation = "portrait", handKey, disabled }: HoleCardsProps) {
+export function HoleCards({ cards, mode, lockFaceUp, hapticsEnabled, obscured, onReveal, orientation = "portrait", size = "large", handKey, disabled }: HoleCardsProps) {
   // Holding is scoped to the current hand + mode so a new hand never inherits a press.
   const scope = `${handKey}:${mode}`;
   const [hold, setHold] = useState<{ scope: string; down: boolean }>({ scope, down: false });
@@ -119,7 +126,7 @@ export function HoleCards({ cards, mode, lockFaceUp, hapticsEnabled, obscured, o
   };
   const endHold = () => setHold({ scope, down: false });
 
-  const layout = orientation === "landscape" ? "max-w-3xl flex-row gap-6" : "max-w-sm flex-row gap-3";
+  const layout = `flex-row ${WIDTHS[orientation][size]}`;
 
   return (
     <div className="relative w-full">
