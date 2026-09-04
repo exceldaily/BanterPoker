@@ -309,7 +309,9 @@ describe("tournament clock", () => {
     expect(last.timerStatus).toBe("expired");
     await expectCode(d.call("timer_action", { p_game_id: gid, p_action: "next" }), "NO_NEXT_LEVEL");
 
-    // Structure edits are locked mid-game until enabled.
+    // Structure edits are allowed by default (home games double blinds mid-session)
+    // but the host can lock them, and the lock is enforced server-side.
+    await d.call("update_settings", { p_game_id: gid, p_patch: { allowStructureEdits: false } });
     await expectCode(d.call("replace_levels", { p_game_id: gid, p_levels: [{ smallBlind: 1, bigBlind: 2, durationSeconds: 600 }] }), "STRUCTURE_LOCKED");
     await d.call("update_settings", { p_game_id: gid, p_patch: { allowStructureEdits: true } });
     await d.call("replace_levels", { p_game_id: gid, p_levels: [{ smallBlind: 1, bigBlind: 2, durationSeconds: 600 }, { smallBlind: 2, bigBlind: 4, durationSeconds: 600 }] });
