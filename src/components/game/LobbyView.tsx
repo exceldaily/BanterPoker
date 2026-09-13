@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { AvatarCapture } from "@/components/AvatarCapture";
 import { ConnectionDot } from "@/components/ConnectionDot";
 import { Wordmark } from "@/components/Logo";
 import { SeatMap } from "@/components/SeatMap";
@@ -96,6 +97,21 @@ export function LobbyView({ state }: { state: GameState }) {
           <Button variant="gold" onClick={() => setDrawer("invite")}>
             Invite players
           </Button>
+        </Card>
+      ) : null}
+
+      {isPlayer ? (
+        <Card className="py-3">
+          <AvatarCapture
+            current={players.find((p) => p.id === me.playerId)?.avatar ?? null}
+            onChange={async (url) => {
+              try {
+                await state.act(() => api.setAvatar(game.id, url));
+              } catch (err) {
+                toast.show(friendlyMessage(err), "error");
+              }
+            }}
+          />
         </Card>
       ) : null}
 

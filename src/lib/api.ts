@@ -91,6 +91,7 @@ export const api = {
     }),
   chooseSeat: (gameId: string, seat: number) => rpc<{ seat: number }>("choose_seat", { p_game_id: gameId, p_seat: seat }),
   setDisplayName: (gameId: string, name: string) => rpc<null>("set_display_name", { p_game_id: gameId, p_name: name }),
+  setAvatar: (gameId: string, dataUrl: string | null) => rpc<null>("set_avatar", { p_game_id: gameId, p_avatar: dataUrl }),
   leaveGame: (gameId: string) => rpc<null>("leave_game", { p_game_id: gameId }),
   snapshot: (gameId: string) => rpc<GameSnapshot>("get_game_snapshot", { p_game_id: gameId }),
   setSeatingLocked: (gameId: string, locked: boolean) => rpc<null>("set_seating_locked", { p_game_id: gameId, p_locked: locked }),

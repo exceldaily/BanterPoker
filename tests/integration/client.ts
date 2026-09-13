@@ -63,7 +63,7 @@ export function as(d: Device) {
 
 export interface Snapshot {
   game: { id: string; status: string; version: number; dealerSeat: number | null; handCount: number; seatingLocked: boolean; winnerPlayerId: string | null };
-  players: Array<{ id: string; name: string; seat: number | null; status: string; handStatus: string | null; shownCards: [string, string] | null }>;
+  players: Array<{ id: string; name: string; seat: number | null; status: string; handStatus: string | null; shownCards: [string, string] | null; avatar: string | null }>;
   hand: { id: string; number: number; state: string; dealerSeat: number; smallBlindSeat: number; bigBlindSeat: number; board: string[]; playersDealtIn: number; playersRemaining: number; playersFolded: number } | null;
   tournament: { levels: Array<{ id: string; type: string; durationSeconds: number }>; currentLevelId: string | null; timerStatus: string; remainingSeconds: number; pendingAdvance: boolean };
   me: { role: string; canControl: boolean; isHost: boolean; playerId: string | null; seat: number | null; status: string | null; hand: { status: string; cards: [string, string] | null } | null };

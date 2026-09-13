@@ -122,6 +122,10 @@ export const RPC_ALLOWLIST = {
   }),
   choose_seat: z.object({ p_game_id: uuid, p_seat: z.number().int().min(1).max(12) }),
   set_display_name: z.object({ p_game_id: uuid, p_name: z.string().min(1).max(24) }),
+  set_avatar: z.object({
+    p_game_id: uuid,
+    p_avatar: z.string().max(16384).regex(/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/).nullable(),
+  }),
   leave_game: z.object({ p_game_id: uuid }),
   get_game_snapshot: z.object({ p_game_id: uuid }),
   set_seating_locked: z.object({ p_game_id: uuid, p_locked: z.boolean() }),

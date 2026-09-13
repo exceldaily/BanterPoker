@@ -141,7 +141,14 @@ export function SeatMap({ maxSeats, players, hand, dealerSeat, mySeat, myPlayerI
                     : "border-dashed border-white/15 bg-charcoal-900/70 text-ivory-600",
               )}
             >
-              {p ? initials(p.name) : seat}
+              {p?.avatar ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={p.avatar} alt="" className={cn("h-full w-full rounded-full object-cover", muted && "opacity-50 grayscale")} />
+              ) : p ? (
+                initials(p.name)
+              ) : (
+                seat
+              )}
               {label ? (
                 <span
                   className={cn(

@@ -57,6 +57,25 @@ export function DealerView({ state, onSwitchToPlayer }: { state: GameState; onSw
     lastLevel.current = cur;
   }, [tournament.currentLevelId, tournament.levels, game.soundsEnabled, game.hapticsEnabled, game.timerAlertsEnabled]);
 
+  // Folds are announced on the dealer device the moment they land.
+  const foldedNames = useMemo(
+    () => (hand && hand.state !== "complete" ? players.filter((p) => p.handStatus === "folded").map((p) => p.name) : []),
+    [players, hand],
+  );
+  const lastFoldKey = useRef<string>("");
+  useEffect(() => {
+    const key = `${hand?.id ?? ""}:${foldedNames.join("|")}`;
+    if (lastFoldKey.current && lastFoldKey.current.startsWith(`${hand?.id ?? ""}:`) && key !== lastFoldKey.current) {
+      const prev = new Set(lastFoldKey.current.split(":")[1]?.split("|").filter(Boolean));
+      const fresh = foldedNames.filter((n) => !prev.has(n));
+      if (fresh.length > 0) {
+        toast.show(`${fresh.join(", ")} folded`);
+        if (game.soundsEnabled) playSound("fold");
+      }
+    }
+    lastFoldKey.current = key;
+  }, [foldedNames, hand?.id, toast, game.soundsEnabled]);
+
   const run = async (fn: () => Promise<unknown>, sound?: Parameters<typeof playSound>[0]) => {
     if (busy) return;
     setBusy(true);
@@ -152,7 +171,7 @@ export function DealerView({ state, onSwitchToPlayer }: { state: GameState; onSw
             </div>
           ) : null}
           <TournamentBar game={game} tournament={tournament} view={view} className={game.timerMode === "tournament" ? "lg:hidden" : ""} size="sm" />
-          <HandStatus hand={hand} />
+          <HandStatus hand={hand} foldedNames={foldedNames} />
         </div>
 
         <Board hand={hand} size="auto" className="py-2" />
@@ -261,7 +280,7 @@ export function DealerView({ state, onSwitchToPlayer }: { state: GameState; onSw
   );
 }
 
-function HandStatus({ hand }: { hand: GameState["snapshot"] extends infer S ? (S extends { hand: infer H } ? H : never) : never }) {
+function HandStatus({ hand, foldedNames }: { hand: GameState["snapshot"] extends infer S ? (S extends { hand: infer H } ? H : never) : never; foldedNames: string[] }) {
   if (!hand) return null;
   if (hand.state === "complete") {
     return <p className="text-center text-[10px] font-semibold uppercase tracking-[0.25em] text-ivory-400 lg:text-left lg:text-xs">Hand {hand.number} complete · button moves next hand</p>;
@@ -276,6 +295,11 @@ function HandStatus({ hand }: { hand: GameState["snapshot"] extends infer S ? (S
           {hand.playersRemaining} of {hand.playersDealtIn} in the hand{hand.playersFolded ? ` · ${hand.playersFolded} folded` : ""}
         </p>
       )}
+      {foldedNames.length > 0 ? (
+        <p className="mt-1 text-sm text-status-bad lg:text-base">
+          <span className="font-semibold uppercase tracking-[0.15em]">Folded:</span> {foldedNames.join(", ")}
+        </p>
+      ) : null}
     </div>
   );
 }

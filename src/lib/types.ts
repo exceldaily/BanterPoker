@@ -44,6 +44,8 @@ export interface SnapshotPlayer {
   lastSeenAt: string | null;
   handStatus: HandPlayerStatus | null;
   shownCards: [string, string] | null;
+  /** Tiny JPEG data URL for this game only; wiped when the game ends. */
+  avatar: string | null;
 }
 
 export interface SnapshotHand {

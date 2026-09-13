@@ -44,6 +44,7 @@ export const ERROR_COPY: Record<string, string> = {
   MODE_INVALID: "Pick how this device will be used.",
   SEATS_INVALID: "Tables seat between 2 and 12 players.",
   ARG_INVALID: "That value is out of range.",
+  AVATAR_INVALID: "That photo could not be used. Try another one.",
   ACTION_INVALID: "Unknown clock action.",
   CODE_COLLISION: "Could not generate a table code. Try again.",
   OFFLINE: "You are offline. Reconnect to keep playing.",

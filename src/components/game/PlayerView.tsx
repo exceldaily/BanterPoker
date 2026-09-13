@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { AvatarCapture } from "@/components/AvatarCapture";
 import { Board } from "@/components/Board";
 import { ConnectionDot } from "@/components/ConnectionDot";
 import { HoleCards } from "@/components/cards/HoleCards";
@@ -158,8 +159,8 @@ export function PlayerView({ state, onSwitchToDealer }: { state: GameState; onSw
   };
 
   const reduced = prefersReducedMotion();
-  const canShow = !!myHand && !folded && !shown && !!hand;
-  const showdownStage = !!hand && (hand.state === "complete" || hand.state === "river" || hand.playersRemaining <= 2);
+  // Showing is only offered once the dealer has ended the hand, never mid-hand.
+  const canShow = !!myHand && !folded && !shown && !!hand && hand.state === "complete";
 
   return (
     <main className={cn("safe-top safe-bottom safe-x mx-auto flex min-h-dvh w-full flex-col gap-3 py-3", orientation === "landscape" ? "max-w-4xl" : "max-w-md")} onPointerDown={unlockAudio}>
@@ -243,7 +244,7 @@ export function PlayerView({ state, onSwitchToDealer }: { state: GameState; onSw
       <footer className="flex flex-col items-center gap-3">
         {myHand && !folded ? (
           <div className="flex w-full items-center justify-center gap-2">
-            {canShow && (showdownStage || hand?.state === "complete") ? (
+            {canShow ? (
               <>
                 <Button variant="gold" size="sm" onClick={() => setConfirmShow(true)}>
                   Show hand
@@ -354,6 +355,19 @@ export function PlayerView({ state, onSwitchToDealer }: { state: GameState; onSw
               }}
             />
           ) : null}
+          <div>
+            <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-ivory-400">Your photo</p>
+            <AvatarCapture
+              current={myPlayer?.avatar ?? null}
+              onChange={async (url) => {
+                try {
+                  await state.act(() => api.setAvatar(game.id, url));
+                } catch (err) {
+                  toast.show(friendlyMessage(err), "error");
+                }
+              }}
+            />
+          </div>
           <div>
             <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-ivory-400">Layout</p>
             <Segmented

@@ -77,7 +77,8 @@ describe("full game flow (dedicated dealer + 4 players)", () => {
     const folded = await as(t.players[1]!.device).snapshot(gid);
     expect(folded.me.hand?.status).toBe("folded");
     expect(folded.me.hand?.cards).toBeNull();
-    await expectCode(as(t.players[1]!.device).call("show_hand", { p_game_id: gid }), "ALREADY_FOLDED");
+    // Mid-hand nobody can show, folded or not.
+    await expectCode(as(t.players[1]!.device).call("show_hand", { p_game_id: gid }), "HAND_IN_PROGRESS");
     const afterFold = await dealer.snapshot(gid);
     expect(afterFold.hand?.playersFolded).toBe(1);
     expect(afterFold.hand?.playersRemaining).toBe(3);
@@ -95,15 +96,9 @@ describe("full game flow (dedicated dealer + 4 players)", () => {
     expect(new Set(river.board).size).toBe(5);
     for (const c of river.board.slice(3)) expect(seen.has(c)).toBe(false);
 
-    // Show hand: player 1 shows; cards appear publicly for everyone, including the dealer.
-    await as(t.players[0]!.device).call("show_hand", { p_game_id: gid });
-    const mine = await as(t.players[0]!.device).snapshot(gid);
-    const pub = await dealer.snapshot(gid);
-    const shownRow = pub.players.find((p) => p.id === t.players[0]!.playerId)!;
-    expect(shownRow.handStatus).toBe("shown");
-    expect(shownRow.shownCards).toEqual(mine.me.hand?.cards);
-    // Player 4 keeps private: still hidden to others.
-    expect(pub.players.find((p) => p.id === t.players[3]!.playerId)?.shownCards).toBeNull();
+    // Showing is refused while the hand is live, even on the river.
+    await expectCode(as(t.players[0]!.device).call("show_hand", { p_game_id: gid }), "HAND_IN_PROGRESS");
+    expect((await dealer.snapshot(gid)).players.every((p) => p.shownCards === null)).toBe(true);
 
     // End hand, button rotates to next active seat clockwise.
     const ended = await dealer.call<{ nextDealerSeat: number }>("end_hand", { p_game_id: gid });
@@ -113,10 +108,27 @@ describe("full game flow (dedicated dealer + 4 players)", () => {
     expect(afterEnd.game.dealerSeat).toBe(ended.nextDealerSeat);
     expect(ended.nextDealerSeat).not.toBe(ds.hand!.dealerSeat);
 
-    // Showing is still allowed after END HAND (until the next hand starts).
+    // After END HAND a player may show; cards appear publicly for everyone, including the dealer.
+    // A folded player's cards stay private for good.
+    await expectCode(as(t.players[1]!.device).call("show_hand", { p_game_id: gid }), "ALREADY_FOLDED");
+    await as(t.players[0]!.device).call("show_hand", { p_game_id: gid });
+    const mine = await as(t.players[0]!.device).snapshot(gid);
+    const pub = await dealer.snapshot(gid);
+    const shownRow = pub.players.find((p) => p.id === t.players[0]!.playerId)!;
+    expect(shownRow.handStatus).toBe("shown");
+    expect(shownRow.shownCards).toEqual(mine.me.hand?.cards);
+    // Player 4 keeps private until they choose otherwise.
+    expect(pub.players.find((p) => p.id === t.players[3]!.playerId)?.shownCards).toBeNull();
     await as(t.players[3]!.device).call("show_hand", { p_game_id: gid });
     const afterShow = await dealer.snapshot(gid);
     expect(afterShow.players.find((p) => p.id === t.players[3]!.playerId)?.shownCards).toHaveLength(2);
+
+    // Per-game photo: set, visible to the table, wiped when the game ends.
+    const avatar = `data:image/jpeg;base64,${Buffer.from("not-really-a-jpeg-but-shaped-like-one").toString("base64")}`;
+    await as(t.players[0]!.device).call("set_avatar", { p_game_id: gid, p_avatar: avatar });
+    expect((await dealer.snapshot(gid)).players.find((p) => p.id === t.players[0]!.playerId)?.avatar).toBe(avatar);
+    await expectCode(as(t.players[0]!.device).call("set_avatar", { p_game_id: gid, p_avatar: "data:image/png;base64,AAAA" }), "AVATAR_INVALID");
+    await expectCode(as(t.host).call("set_avatar", { p_game_id: gid, p_avatar: avatar }), "NOT_A_PLAYER");
 
     // Hand 2: new shuffle, fold state reset, previous cards gone.
     const h2 = await dealer.call<{ handNumber: number }>("start_hand", { p_game_id: gid });
@@ -156,6 +168,7 @@ describe("full game flow (dedicated dealer + 4 players)", () => {
     expect(done.game.status).toBe("complete");
     expect(done.game.winnerPlayerId).toBe(t.players[0]!.playerId);
     expect(done.game.handCount).toBe(4);
+    expect(done.players.every((p) => p.avatar === null)).toBe(true);
   }, 120_000);
 });
 
