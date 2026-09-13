@@ -70,7 +70,7 @@ export function LobbyView({ state }: { state: GameState }) {
   };
 
   return (
-    <main className="safe-top safe-bottom safe-x mx-auto flex min-h-dvh w-full max-w-2xl flex-col gap-4 py-4">
+    <main className={cn("safe-top safe-bottom safe-x mx-auto flex min-h-dvh w-full flex-col gap-4 py-4", canControl ? "max-w-2xl lg:max-w-5xl lg:px-8" : "max-w-2xl")}>
       <Toast message={toast.message} tone={toast.tone} />
       <header className="flex items-start justify-between">
         <div>
@@ -125,6 +125,7 @@ export function LobbyView({ state }: { state: GameState }) {
         connectedPlayerIds={connectedIds}
         onSeatTap={isPlayer && (!game.seatingLocked || me.status === "pending") ? onSeatTap : undefined}
         selectable={isPlayer && (!game.seatingLocked || me.status === "pending")}
+        className={canControl ? "lg:max-w-4xl" : undefined}
         center={
           <div className="text-center">
             <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-ivory-400">Waiting for players</p>

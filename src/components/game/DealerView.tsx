@@ -15,13 +15,18 @@ import { anteLabel, levelLabel } from "@/lib/blinds";
 import { friendlyMessage } from "@/lib/errors";
 import { haptic, playSound, unlockAudio } from "@/lib/feedback";
 import { useCountdown } from "@/lib/hooks/useCountdown";
+import { useFullscreen } from "@/lib/hooks/useFullscreen";
 import type { GameState } from "@/lib/hooks/useGame";
-import { prefs, useStored } from "@/lib/storage";
 import { blindsInForce, formatClock } from "@/lib/timer";
 
 type Drawer = "players" | "tournament" | "devices" | "settings" | "invite" | "events" | null;
 
-/** Dealer dashboard: one unmistakable primary action, everything else tucked away. */
+/**
+ * Dealer dashboard. One unmistakable primary action, everything else tucked
+ * away. Phones get a stacked layout; anything laptop-sized or wider fills the
+ * whole screen with the clock, a big board and the table side by side, so a
+ * tablet or TV in the middle of the table works as the dealer tray.
+ */
 export function DealerView({ state, onSwitchToPlayer }: { state: GameState; onSwitchToPlayer?: () => void }) {
   const router = useRouter();
   const snap = state.snapshot!;
@@ -31,10 +36,8 @@ export function DealerView({ state, onSwitchToPlayer }: { state: GameState; onSw
   const [busy, setBusy] = useState(false);
   const [confirmEndEarly, setConfirmEndEarly] = useState(false);
   const [confirmEndGame, setConfirmEndGame] = useState(false);
-  const storedTabletop = useStored(prefs.getTabletopMode, false);
-  const [tabletopChoice, setTabletop] = useState<boolean | null>(null);
-  const tabletop = tabletopChoice ?? storedTabletop;
   const lastLevel = useRef<string | null>(null);
+  const fullscreen = useFullscreen();
 
   const connectedIds = useMemo(() => new Set(state.presence.map((p) => p.playerId).filter((x): x is string => !!x)), [state.presence]);
   const hostPresent = state.presence.some((p) => p.isHost) || !!me.isHost;
@@ -97,16 +100,17 @@ export function DealerView({ state, onSwitchToPlayer }: { state: GameState; onSw
   };
 
   const pendingCount = players.filter((p) => p.status === "pending").length;
+  const urgent = view?.status === "running" && view.remainingSeconds < 60;
 
   return (
-    <main className={cn("safe-top safe-bottom safe-x mx-auto flex min-h-dvh w-full flex-col gap-3 py-3", tabletop ? "max-w-6xl" : "max-w-2xl")} onPointerDown={unlockAudio}>
+    <main className="safe-top safe-bottom safe-x flex min-h-dvh w-full flex-col gap-3 py-3 lg:h-dvh lg:gap-4 lg:px-8 lg:py-4 2xl:px-14" onPointerDown={unlockAudio}>
       <Toast message={toast.message} tone={toast.tone} />
 
       <header className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <Wordmark size="sm" />
-          <h1 className="truncate font-serif text-2xl text-ivory-50">{game.tableName}</h1>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-ivory-400">
+          <h1 className="truncate font-serif text-2xl text-ivory-50 lg:text-3xl">{game.tableName}</h1>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-ivory-400 lg:text-xs">
             {hand ? `Hand ${hand.number}` : "No hand yet"} · Button seat {game.dealerSeat ?? "–"} · {activeCount} active
           </p>
         </div>
@@ -127,34 +131,34 @@ export function DealerView({ state, onSwitchToPlayer }: { state: GameState; onSw
         </button>
       ) : null}
 
-      {tabletop ? (
-        <section className="grid flex-1 grid-cols-1 items-center gap-4 lg:grid-cols-[1fr_1.2fr_1fr]">
-          <div className="flex flex-col gap-3">
-            {game.timerMode === "tournament" ? (
-              <div className="rounded-3xl border border-white/10 bg-charcoal-900/60 p-4">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-ivory-400">{view?.isBreak ? "Break" : `Level ${view?.levelNumber ?? ""}`}</p>
-                <p className="font-serif text-3xl text-ivory-50">{blinds ? levelLabel(blinds) : "No blinds"}</p>
-                {blinds && anteLabel(blinds) ? <p className="text-gold-300">{anteLabel(blinds)}</p> : null}
-                <p className={cn("mt-2 font-mono text-5xl tabular-nums", view && view.status === "running" && view.remainingSeconds < 60 ? "text-status-warn" : "text-ivory-50")}>
-                  {view ? formatClock(view.remainingSeconds) : "--:--"}
+      {/* Phone: stacked. Laptop/TV/tablet-landscape: clock | board | table, filling the screen. */}
+      <section className="flex flex-1 flex-col gap-3 lg:grid lg:min-h-0 lg:grid-cols-[minmax(240px,0.9fr)_minmax(0,1.8fr)_minmax(320px,1.4fr)] lg:items-center lg:gap-8">
+        <div className="flex flex-col gap-3">
+          {game.timerMode === "tournament" ? (
+            <div className={cn("hidden rounded-3xl border p-5 lg:block", view?.isBreak ? "border-gold-400/40 bg-gold-500/10" : "border-white/10 bg-charcoal-900/60", urgent && "border-status-warn/60")}>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-ivory-400">
+                {view?.isBreak ? "Break" : `Level ${view?.levelNumber ?? ""}`}
+                {view?.status === "paused" ? " · paused" : view?.pendingAdvance || view?.status === "expired" ? " · complete" : ""}
+              </p>
+              <p className="font-serif text-4xl text-ivory-50 2xl:text-5xl">{blinds ? levelLabel(blinds) : "No blinds"}</p>
+              {blinds && anteLabel(blinds) ? <p className="text-xl text-gold-300">{anteLabel(blinds)}</p> : null}
+              <p className={cn("mt-3 font-mono text-6xl tabular-nums 2xl:text-7xl", urgent ? "text-status-warn" : "text-ivory-50")}>{view ? formatClock(view.remainingSeconds) : "--:--"}</p>
+              {view?.nextLevel ? (
+                <p className="mt-3 text-sm text-ivory-400">
+                  Next: {levelLabel(view.nextLevel)}
+                  {anteLabel(view.nextLevel) ? ` · ${anteLabel(view.nextLevel)}` : ""}
                 </p>
-              </div>
-            ) : (
-              <TournamentBar game={game} tournament={tournament} view={view} size="lg" />
-            )}
-            <HandStatus hand={hand} />
-          </div>
-          <Board hand={hand} size="xl" />
-          <SeatMap maxSeats={game.maxSeats} players={players} hand={hand} dealerSeat={game.dealerSeat} connectedPlayerIds={connectedIds} compact />
-        </section>
-      ) : (
-        <>
-          <TournamentBar game={game} tournament={tournament} view={view} />
-          <Board hand={hand} size="md" className="py-2" />
+              ) : null}
+            </div>
+          ) : null}
+          <TournamentBar game={game} tournament={tournament} view={view} className={game.timerMode === "tournament" ? "lg:hidden" : ""} size="sm" />
           <HandStatus hand={hand} />
-          <SeatMap maxSeats={game.maxSeats} players={players} hand={hand} dealerSeat={game.dealerSeat} connectedPlayerIds={connectedIds} compact />
-        </>
-      )}
+        </div>
+
+        <Board hand={hand} size="auto" className="py-2" />
+
+        <SeatMap maxSeats={game.maxSeats} players={players} hand={hand} dealerSeat={game.dealerSeat} connectedPlayerIds={connectedIds} className="lg:max-w-none" />
+      </section>
 
       {view?.pendingAdvance ? (
         <div className="rounded-2xl border border-gold-400/40 bg-gold-500/10 px-4 py-2 text-center text-xs font-semibold uppercase tracking-[0.2em] text-gold-300">
@@ -166,18 +170,20 @@ export function DealerView({ state, onSwitchToPlayer }: { state: GameState; onSw
         </Button>
       ) : null}
 
-      <div className="mt-auto flex flex-col gap-2">
-        {primary ? (
-          <Button size="xl" variant={primary.variant ?? "primary"} block onClick={primary.onClick} loading={busy}>
-            {primary.label}
-          </Button>
-        ) : null}
-        {secondaryEnd ? (
-          <Button variant="ghost" block onClick={() => setConfirmEndEarly(true)}>
-            End hand early
-          </Button>
-        ) : null}
-        <div className="grid grid-cols-5 gap-2">
+      <div className="mt-auto flex flex-col gap-2 lg:mt-0">
+        <div className="flex flex-col gap-2 lg:flex-row lg:items-stretch">
+          {primary ? (
+            <Button size="xl" variant={primary.variant ?? "primary"} block onClick={primary.onClick} loading={busy} className="lg:flex-[2] lg:text-2xl">
+              {primary.label}
+            </Button>
+          ) : null}
+          {secondaryEnd ? (
+            <Button variant="ghost" block onClick={() => setConfirmEndEarly(true)} className="lg:flex-1">
+              End hand early
+            </Button>
+          ) : null}
+        </div>
+        <div className="grid grid-cols-5 gap-2 lg:mx-auto lg:w-full lg:max-w-4xl">
           <Button variant="secondary" size="sm" onClick={() => setDrawer("players")}>
             Players
           </Button>
@@ -195,20 +201,17 @@ export function DealerView({ state, onSwitchToPlayer }: { state: GameState; onSw
           </Button>
         </div>
         <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.2em] text-ivory-600">
-          <button
-            type="button"
-            onClick={() => {
-              const v = !tabletop;
-              setTabletop(v);
-              prefs.setTabletopMode(v);
-            }}
-          >
-            {tabletop ? "Compact layout" : "Tabletop layout"}
-          </button>
           <div className="flex items-center gap-4">
+            {fullscreen.supported ? (
+              <button type="button" onClick={() => void fullscreen.toggle()}>
+                {fullscreen.active ? "Exit full screen" : "Full screen"}
+              </button>
+            ) : null}
             <button type="button" onClick={() => setDrawer("events")}>
               Log
             </button>
+          </div>
+          <div className="flex items-center gap-4">
             {onSwitchToPlayer ? (
               <button type="button" onClick={onSwitchToPlayer} className="text-gold-300">
                 My cards
@@ -261,15 +264,15 @@ export function DealerView({ state, onSwitchToPlayer }: { state: GameState; onSw
 function HandStatus({ hand }: { hand: GameState["snapshot"] extends infer S ? (S extends { hand: infer H } ? H : never) : never }) {
   if (!hand) return null;
   if (hand.state === "complete") {
-    return <p className="text-center text-[10px] font-semibold uppercase tracking-[0.25em] text-ivory-400">Hand {hand.number} complete · button moves next hand</p>;
+    return <p className="text-center text-[10px] font-semibold uppercase tracking-[0.25em] text-ivory-400 lg:text-left lg:text-xs">Hand {hand.number} complete · button moves next hand</p>;
   }
   const decided = hand.playersRemaining <= 1;
   return (
-    <div className={cn("rounded-2xl border px-4 py-2 text-center", decided ? "border-gold-400/40 bg-gold-500/10" : "border-white/10 bg-charcoal-900/50")}>
+    <div className={cn("rounded-2xl border px-4 py-2 text-center lg:py-3", decided ? "border-gold-400/40 bg-gold-500/10" : "border-white/10 bg-charcoal-900/50")}>
       {decided ? (
-        <p className="text-xs font-bold uppercase tracking-[0.25em] text-gold-300">Hand decided · 1 player remaining</p>
+        <p className="text-xs font-bold uppercase tracking-[0.25em] text-gold-300 lg:text-sm">Hand decided · 1 player remaining</p>
       ) : (
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-ivory-300">
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-ivory-300 lg:text-sm">
           {hand.playersRemaining} of {hand.playersDealtIn} in the hand{hand.playersFolded ? ` · ${hand.playersFolded} folded` : ""}
         </p>
       )}

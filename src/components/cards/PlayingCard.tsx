@@ -70,16 +70,30 @@ export function CardBack({ className, style }: { className?: string; style?: Rea
   );
 }
 
+export type MiniSize = "xs" | "sm" | "md" | "lg" | "xl" | "auto";
+
+// "auto" grows with the viewport: phone-sized on a phone, huge on a TV.
+const MINI_FACE_SIZES: Record<MiniSize, string> = {
+  xs: "w-7 text-[11px] rounded-[4px]",
+  sm: "w-10 text-sm rounded-md",
+  md: "w-14 text-lg rounded-lg",
+  lg: "w-20 text-2xl rounded-xl",
+  xl: "w-28 text-4xl rounded-2xl",
+  auto: "w-14 text-lg rounded-lg md:w-20 md:text-2xl md:rounded-xl xl:w-28 xl:text-4xl xl:rounded-2xl 2xl:w-36 2xl:text-5xl",
+};
+const MINI_BOX_SIZES: Record<MiniSize, string> = {
+  xs: "w-7 rounded-[4px]",
+  sm: "w-10 rounded-md",
+  md: "w-14 rounded-lg",
+  lg: "w-20 rounded-xl",
+  xl: "w-28 rounded-2xl",
+  auto: "w-14 rounded-lg md:w-20 md:rounded-xl xl:w-28 xl:rounded-2xl 2xl:w-36",
+};
+
 /** Small inline card used on the board, the seat map and the display. */
-export function MiniCard({ id, size = "md", className }: { id: string; size?: "xs" | "sm" | "md" | "lg" | "xl"; className?: string }) {
+export function MiniCard({ id, size = "md", className }: { id: string; size?: MiniSize; className?: string }) {
   const c = parseCard(id);
-  const sizes = {
-    xs: "w-7 text-[11px] rounded-[4px]",
-    sm: "w-10 text-sm rounded-md",
-    md: "w-14 text-lg rounded-lg",
-    lg: "w-20 text-2xl rounded-xl",
-    xl: "w-28 text-4xl rounded-2xl",
-  };
+  const sizes = MINI_FACE_SIZES;
   return (
     <div
       className={cn(
@@ -100,12 +114,12 @@ export function MiniCard({ id, size = "md", className }: { id: string; size?: "x
   );
 }
 
-export function MiniCardBack({ size = "md", className }: { size?: "xs" | "sm" | "md" | "lg" | "xl"; className?: string }) {
-  const sizes = { xs: "w-7 rounded-[4px]", sm: "w-10 rounded-md", md: "w-14 rounded-lg", lg: "w-20 rounded-xl", xl: "w-28 rounded-2xl" };
+export function MiniCardBack({ size = "md", className }: { size?: MiniSize; className?: string }) {
+  const sizes = MINI_BOX_SIZES;
   return <div className={cn("card-back border border-white/10 shadow-card", sizes[size], className)} style={{ aspectRatio: CARD_ASPECT }} aria-hidden />;
 }
 
-export function EmptyCardSlot({ size = "md", className }: { size?: "xs" | "sm" | "md" | "lg" | "xl"; className?: string }) {
-  const sizes = { xs: "w-7 rounded-[4px]", sm: "w-10 rounded-md", md: "w-14 rounded-lg", lg: "w-20 rounded-xl", xl: "w-28 rounded-2xl" };
+export function EmptyCardSlot({ size = "md", className }: { size?: MiniSize; className?: string }) {
+  const sizes = MINI_BOX_SIZES;
   return <div className={cn("border border-dashed border-ivory-100/20", sizes[size], className)} style={{ aspectRatio: CARD_ASPECT }} aria-hidden />;
 }

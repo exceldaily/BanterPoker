@@ -129,7 +129,7 @@ export function SeatMap({ maxSeats, players, hand, dealerSeat, mySeat, myPlayerI
             <span
               className={cn(
                 "relative flex items-center justify-center rounded-full border-2 font-semibold shadow-soft",
-                compact ? "h-10 w-10 text-xs" : "h-14 w-14 text-sm",
+                compact ? "h-10 w-10 text-xs" : "h-14 w-14 text-sm xl:h-16 xl:w-16 xl:text-base 2xl:h-20 2xl:w-20 2xl:text-lg",
                 p
                   ? muted
                     ? "border-white/10 bg-charcoal-800 text-ivory-600"
@@ -159,7 +159,7 @@ export function SeatMap({ maxSeats, players, hand, dealerSeat, mySeat, myPlayerI
                 />
               ) : null}
             </span>
-            <span className={cn("max-w-[5.5rem] truncate font-medium", compact ? "text-[10px]" : "text-[11px]", p ? (muted ? "text-ivory-600" : "text-ivory-100") : "text-ivory-600")}>
+            <span className={cn("max-w-[5.5rem] truncate font-medium", compact ? "text-[10px]" : "text-[11px] xl:text-sm 2xl:max-w-[8rem] 2xl:text-base", p ? (muted ? "text-ivory-600" : "text-ivory-100") : "text-ivory-600")}>
               {p ? p.name : selectable ? "Open" : `Seat ${seat}`}
             </span>
             {badge ? <span className={cn("rounded-full px-1.5 py-0.5 text-[8px] font-bold tracking-widest", badge.className)}>{badge.label}</span> : null}
